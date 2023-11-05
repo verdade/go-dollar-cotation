@@ -73,7 +73,7 @@ func saveBid(bid string) {
 	if err != nil {
 		log.Println("Error in creating table")
 	} else {
-		log.Println("Successfully created table books!")
+		log.Println("Successfully created table cotation!")
 	}
 	statement.Exec()
 
