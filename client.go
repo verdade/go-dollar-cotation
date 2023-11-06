@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/verdade/go-dollar-cotation/server"
 	"net/http"
 	"os"
 )
@@ -15,7 +16,7 @@ func main() {
 }
 
 func CotacaoHandler(w http.ResponseWriter, r *http.Request) {
-	cotation, err := GetCotationDollar()
+	cotation, err := server.GetCotationDollar()
 	if err != nil {
 		panic(err)
 	}
