@@ -28,6 +28,7 @@ type Cotation struct {
 	} `json:"USDBRL"`
 }
 
+// Teste
 func GetCotationDollar() (*Cotation, error) {
 
 	ctx := context.Background()
