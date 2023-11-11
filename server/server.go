@@ -1,9 +1,10 @@
-package server
+package main
 
 import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"log"
 	"net/http"
@@ -28,35 +29,37 @@ type Cotation struct {
 	} `json:"USDBRL"`
 }
 
-// Teste
-func GetCotationDollar() (*Cotation, error) {
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/cotacao", GetCotationDollar)
+	http.ListenAndServe(":8080", mux)
+}
 
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, time.Millisecond*200)
+func GetCotationDollar(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*200)
 	defer cancel()
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, URI_COTATION, nil)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		log.Println(">>> Deu erro %v\n <<<", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		log.Println(">>> Deu erro %v\n <<<", err)
 	}
 
 	var c Cotation
 	err = json.Unmarshal(body, &c)
 	if err != nil {
-		return nil, err
+		log.Println(">>> Deu erro %v\n <<<", err)
 	}
 
 	bid := c.USDBRL.Bid
-
 	saveBid(bid)
-	return &c, nil
+	w.Write([]byte(string(string(body))))
 }
 
 func saveBid(bid string) {
@@ -70,16 +73,13 @@ func saveBid(bid string) {
 	}
 	defer db.Close()
 
-	statement, err := db.Prepare("CREATE TABLE IF NOT EXISTS cotations (id INTEGER PRIMARY KEY, bid VARCHAR(30))")
+	smt, err := db.Prepare("INSERT INTO cotations (bid) values (?)")
 	if err != nil {
-		log.Println("Error in creating table")
-	} else {
-		log.Println("Successfully created table cotation!")
+		log.Println(">>> Deu erro %v\n <<<", err)
 	}
-	statement.Exec()
-
-	statement, _ = db.Prepare("INSERT INTO cotations (bid) values (?)")
-	statement.ExecContext(ctx)
-	log.Println("Inserted the cotation into database!")
-
+	_, err = smt.ExecContext(ctx, bid)
+	if err != nil {
+		log.Println(">>> Deu erro %v\n <<<", err)
+	}
+	log.Println("::.. Inserted the cotation into database! ..::")
 }

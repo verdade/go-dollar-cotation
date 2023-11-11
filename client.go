@@ -1,39 +1,76 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/verdade/go-dollar-cotation/server"
+	"io"
+	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
-func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/cotacao", CotacaoHandler)
-	http.ListenAndServe(":8080", mux)
+type Cotation struct {
+	USDBRL struct {
+		Code       string `json:"code"`
+		Codein     string `json:"codein"`
+		Name       string `json:"name"`
+		High       string `json:"high"`
+		Low        string `json:"low"`
+		VarBid     string `json:"varBid"`
+		PctChange  string `json:"pctChange"`
+		Bid        string `json:"bid"`
+		Ask        string `json:"ask"`
+		Timestamp  string `json:"timestamp"`
+		CreateDate string `json:"create_date"`
+	} `json:"USDBRL"`
 }
 
-func CotacaoHandler(w http.ResponseWriter, r *http.Request) {
-	cotation, err := server.GetCotationDollar()
+const URI_COTATION = "http://localhost:8080/cotacao"
+
+func main() {
+	log.Println("::.. Inicializando busca cotação Dollar ..::")
+	defer log.Println("::.. Finalizando Requisição ..::")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*300)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", URI_COTATION, nil)
 	if err != nil {
-		panic(err)
+		log.Println(">>> Deu erro %v\n <<<", err)
 	}
 
-	res, err := json.Marshal(cotation)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		panic(err)
+		log.Println(">>> Deu erro %v\n <<<", err)
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Println(">>> Deu erro %v\n <<<", err)
 	}
 
+	var cotation Cotation
+	err = json.Unmarshal(body, &cotation)
+	if err != nil {
+		log.Println(">>> Deu erro %v\n <<<", err)
+	}
+	createFile(&cotation)
+
+}
+
+func createFile(cotation *Cotation) {
 	file, err := os.Create("cotacao.txt")
 	if err != nil {
-		fmt.Fprint(os.Stderr, "Deu erro %v\n", err)
+		log.Println(">>> Deu erro %v\n <<<", err)
 	}
 	defer file.Close()
+
 	_, err = file.WriteString(fmt.Sprintf("Dólar: %s", cotation.USDBRL.Bid))
 	if err != nil {
-		fmt.Fprint(os.Stderr, "Deu erro %v\n", err)
+		log.Println(">>> Deu erro %v\n <<<", err)
 	}
-	w.Write([]byte(string(res)))
 }
